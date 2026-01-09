@@ -1,4 +1,4 @@
-def format_emails_list(emails, max_body_length=100):
+def format_emails_list(emails):
     """Format emails for display"""
     if not emails:
         return "No emails"
@@ -7,9 +7,9 @@ def format_emails_list(emails, max_body_length=100):
         """Escape special Markdown characters and newlines"""
         if not text:
             return text
-        # Заменяем переносы строк на пробелы, чтобы избежать проблем с Markdown списками
+
         text = text.replace('\n', ' ')
-        # Экранируем специальные символы Markdown
+
         special_chars = ['\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '|']
         for char in special_chars:
             text = text.replace(char, '\\' + char)
@@ -18,8 +18,7 @@ def format_emails_list(emails, max_body_length=100):
     result = []
     for i, email in enumerate(emails, 1):
         body = email.get('body', '')
-        
-        # Экранируем все поля перед выводом
+
         from_addr = escape_markdown(email.get('from', 'N/A'))
         to_addr = escape_markdown(email.get('to', 'N/A'))
         subject = escape_markdown(email.get('subject', 'N/A'))

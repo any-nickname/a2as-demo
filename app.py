@@ -1,15 +1,8 @@
+from agent.agent import get_agent
+from agent.agent_with_a2as import get_agent_with_a2as
 from models.email_list import EmailList
-from models.email_agent_tools import EmailRegistry, FindEmailsTool, SendEmailTool
-from smolagents import InferenceClientModel, ToolCallingAgent
-from dotenv import load_dotenv
-import os
+from models.email_agent_tools import EmailRegistry
 from ui.components import get_interface
-
-
-load_dotenv()
-
-
-HUGGING_FACE_TOKEN = os.getenv("HUGGING_FACE_TOKEN")
 
 
 USER_EMAIL = 'vlagrishchenko@goodcorp.ai'
@@ -24,30 +17,23 @@ email_registry = EmailRegistry({
     ATTACKER_EMAIL: attacker_emails,
 })
 
-# Initialize agent
-model_id = "Qwen/Qwen2.5-72B-Instruct"
-model = InferenceClientModel(model_id=model_id, token=HUGGING_FACE_TOKEN)
-agent = ToolCallingAgent(
-    tools = [
-        FindEmailsTool(user_address=USER_EMAIL, registry=email_registry), 
-        SendEmailTool(user_address=USER_EMAIL, registry=email_registry),
-    ], 
-    model=model, 
-    max_steps=5,
-)
 should_reset_agent = False
-
+agent = get_agent(USER_EMAIL, email_registry)
+agent_with_a2as = get_agent_with_a2as(USER_EMAIL, email_registry)
 
 def reset_agent():
     global should_reset_agent
     should_reset_agent = True
 
 
-def chat_with_agent(message):
+def chat_with_agent(message, a2as_enabled=False):
     """Process chat message with agent"""
     global should_reset_agent
     try:
-        response = agent.run(message, reset=should_reset_agent)
+        if a2as_enabled:
+            response = agent_with_a2as.run(message, reset=should_reset_agent)
+        else:
+            response = agent.run(message, reset=should_reset_agent)
         should_reset_agent = False
         # Handle different response types
         if isinstance(response, list):
