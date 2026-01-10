@@ -3,6 +3,8 @@ from agent.agent_with_a2as import get_agent_with_a2as
 from models.email_list import EmailList
 from models.email_agent_tools import EmailRegistry
 from ui.components import get_interface
+from ui.loggers import GradioConsoleLogger
+from contextlib import redirect_stdout
 
 
 USER_EMAIL = 'vlagrishchenko@goodcorp.ai'
@@ -21,32 +23,46 @@ should_reset_agent = False
 agent = get_agent(USER_EMAIL, email_registry)
 agent_with_a2as = get_agent_with_a2as(USER_EMAIL, email_registry)
 
-def reset_agent():
-    global should_reset_agent
-    should_reset_agent = True
+console_logger = GradioConsoleLogger()
 
 
 def chat_with_agent(message, a2as_enabled=False):
     """Process chat message with agent"""
     global should_reset_agent
+
+    if isinstance(message, list):
+        # Extracting text from 1st element of the list
+        # Message usually looks like this: [{'text': 'Hi', 'type': 'text'}]
+        message = message[0].get("text", "")
+    elif isinstance(message, dict):
+        message = message.get("text", "")
+
+    console_logger.truncate(0)
+    console_logger.seek(0)
+
     try:
-        if a2as_enabled:
-            response = agent_with_a2as.run(message, reset=should_reset_agent)
-        else:
-            response = agent.run(message, reset=should_reset_agent)
+        with redirect_stdout(console_logger):
+            if a2as_enabled:
+                response = agent_with_a2as.run(message, reset=should_reset_agent)
+            else:
+                response = agent.run(message, reset=should_reset_agent)
+
         should_reset_agent = False
-        # Handle different response types
-        if isinstance(response, list):
-            # If response is a list of messages, join them
-            return "\n".join([str(item) for item in response])
-        elif hasattr(response, 'content'):
-            # If response has content attribute
-            return str(response.content)
-        else:
-            return str(response)
+
+        final_text = str(response.content) if hasattr(response, 'content') else "\n".join([str(item) for item in response]) if isinstance(response, list) else str(response)
+
+        return final_text, console_logger.getvalue()
+
     except Exception as e:
         import traceback
-        return f"Original message: {message}\n\nError: {e}\n\nTraceback:\n{traceback.format_exc()}"
+        return f"Original message: {message}\n\nError: {e}\n\nTraceback:\n{traceback.format_exc()}", console_logger.getvalue()
+
+
+def reset_agent():
+    global should_reset_agent
+    should_reset_agent = True
+    console_logger.truncate(0)
+    console_logger.seek(0)
 
 
 if __name__ == "__main__":

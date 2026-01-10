@@ -52,6 +52,18 @@ def get_interface(
 
     # Custom CSS for toggle switch and visual changes
     custom_css = """
+    #small-header {
+        display: block;
+        text-align: center;
+        border: 1px solid gray !important;
+        border-radius: 6px;
+        padding: 5px 0;
+    }
+    
+    #small-header p {
+        font-size: 16px;
+    }
+    
     #agent-wrapper {
         padding: 10px;
         transition: all 0.3s ease;
@@ -122,11 +134,38 @@ def get_interface(
         opacity: 0.6 !important;
         box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1) !important;
     }
+    
+    #console-logs {
+        background-color: #1e1e1e;
+    }
+    
+    #console-logs textarea {
+        background-color: #1e1e1e;
+        color: #ff9d00;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 16px;
+        border: 1px solid #333;
+    }
+    
+    #console-logs > label > span[data-testid="block-info"] {
+        background: #333333;
+        color: #ff9d00;
+        border: 1px solid #444;
+        border-bottom: none;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 2px 8px;
+    }
     """
 
     with gr.Blocks(title="A2AS demo", theme=gr.themes.Soft(), css=custom_css) as demo:
-        gr.Markdown("# A2AS demo")
-        gr.Markdown("LLM-agent behaviour demonstration when processing malicious emails")
+        # gr.Markdown("# A2AS demo")
+        gr.Markdown(
+            value="LLM-agent behaviour demonstration when processing malicious emails and how to protect it with A2AS",
+            elem_id="small-header",
+        )
 
         # A2AS Protection State
         a2as_enabled = gr.State(False)
@@ -189,6 +228,13 @@ def get_interface(
                         submit_btn = gr.Button("Send", variant="primary")
                         clear_btn = gr.Button("Clear chat")
 
+                agent_logs = gr.Textbox(
+                    label="Agent Execution Logs",
+                    interactive=False,
+                    lines=10,
+                    elem_id="console-logs"
+                )
+
             # Right Column: Attacker Interface
             with gr.Column(scale=1):
                 gr.Markdown("## 🎭 Hacker's mailbox")
@@ -238,24 +284,23 @@ def get_interface(
 
         def bot_respond(history, a2as_enabled_state):
             if not history or history[-1]["role"] != "user":
-                return history, get_received_emails(user_addr, email_registry), get_sent_emails(user_addr,
-                                                                                                email_registry), get_received_emails(
-                    attacker_addr, email_registry)
+                return history, get_received_emails(user_addr, email_registry), \
+                    get_sent_emails(user_addr, email_registry), \
+                    get_received_emails(attacker_addr, email_registry), ""
 
-            user_message = history[-1]["content"][0]["text"]
+            user_message = history[-1]["content"]
 
-            # Pass A2AS state to chat function
-            bot_response = chat_with_agent_fn(user_message, a2as_enabled=a2as_enabled_state)
-
-            # Add protection notice if A2AS blocked something
-            # if a2as_enabled_state and "injection" in bot_response.lower():
-            #     bot_response = "🛡️ **A2AS Protection Alert**: Potential prompt injection detected and blocked.\n\n" + bot_response
+            bot_response, logs = chat_with_agent_fn(user_message, a2as_enabled=a2as_enabled_state)
 
             history.append({"role": "assistant", "content": bot_response})
 
-            return history, get_received_emails(user_addr, email_registry), get_sent_emails(user_addr,
-                                                                                            email_registry), get_received_emails(
-                attacker_addr, email_registry)
+            return (
+                history,
+                get_received_emails(user_addr, email_registry),
+                get_sent_emails(user_addr, email_registry),
+                get_received_emails(attacker_addr, email_registry),
+                logs
+            )
 
         # Toggle A2AS state and apply visual changes
         a2as_toggle.change(
@@ -285,7 +330,7 @@ def get_interface(
         ).then(
             bot_respond,
             [chatbot, a2as_enabled],
-            [chatbot, received_display, sent_display, attacker_received_display]
+            [chatbot, received_display, sent_display, attacker_received_display, agent_logs]
         )
 
         submit_btn.click(
@@ -295,10 +340,18 @@ def get_interface(
         ).then(
             bot_respond,
             [chatbot, a2as_enabled],
-            [chatbot, received_display, sent_display, attacker_received_display]
+            [chatbot, received_display, sent_display, attacker_received_display, agent_logs]
         )
 
-        clear_btn.click(lambda: reset_agent_fn(), None, chatbot)
+        clear_btn.click(
+            fn=lambda: (None, ""),
+            inputs=None,
+            outputs=[chatbot, agent_logs],
+        ).then(
+            fn=reset_agent_fn,
+            inputs=None,
+            outputs=None,
+        )
 
         # Attacker email sending
         attacker_send_btn.click(
