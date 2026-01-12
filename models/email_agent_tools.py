@@ -1,9 +1,10 @@
+from models.behavior_certificates import BehaviorCertificates
 from models.email_list import EmailList
 from typing import Dict
 from smolagents import Tool
 
 
-class EmailRegistry():
+class EmailRegistry:
     def __init__(self, emails: Dict[str, EmailList]):
         self.registry = emails
     
@@ -15,7 +16,7 @@ class FindEmailsTool(Tool):
     name = "find_emails"
     description = (
         "Search for emails based on keywords in an email list of current user."
-        "Input should be a search query string and the email list to search in." \
+        "Input should be a search query string and the email list to search in."
         "If you want to see all emails, just use the query 'all emails'."
     )
     inputs = {
@@ -26,12 +27,18 @@ class FindEmailsTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, user_address: str, registry: EmailRegistry):
+    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates):
         super().__init__()
         self.email_address = user_address
         self.email_registry = registry
+        self.behavior_certificates = behavior_certificates
 
     def forward(self, query: str) -> str:
+        # Checking if user is allowed to call "find emails" command.
+        ok, reason = self.behavior_certificates.check_right_to_find_emails()
+        if not ok:
+            return f"Email search was not initiated because: {reason}"
+
         results = self.email_registry[self.email_address].keyword_search(query, top_k=15)
 
         if not results:
@@ -67,13 +74,21 @@ class SendEmailTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, user_address: str, registry: EmailRegistry):
+    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates):
         super().__init__()
         self.email_address = user_address
         self.email_registry = registry
+        self.behavior_certificates = behavior_certificates
 
 
     def forward(self, to_address: str, subject: str, body: str) -> str:
+        # Checking if user is allowed to call "send email" command.
+        ok, reason = self.behavior_certificates.check_right_to_send_email(to_address, subject, body)
+        if not ok:
+            return (f"Sending the email from \"{self.email_address}\" to \"{to_address}\" with subject \"{subject}\" and body \"{body}\" "
+                    f"has been blocked because it prohibits company's policy. Do not try to resend the email."
+                    f"The reason of prohibition: {reason}. You must answer to the user with explanation of why his request has been blocked.")
+
         self.email_registry[self.email_address].add_sent_email(to_address, subject, body)
         self.email_registry[to_address].add_received_email(self.email_address, subject, body)
         return f"Email sent successfully!\nFrom: {self.email_address}\nTo: {to_address}\nSubject: {subject}\nBody:{body}"

@@ -14,9 +14,13 @@ user_emails.load_from_jsonl("emails.jsonl")
 ATTACKER_EMAIL = 'pj.dog@g00dc0rp.ai'
 attacker_emails = EmailList(user_address=ATTACKER_EMAIL)
 
+HELEN_EMAIL = "helenjoy@goodcorp.ai"
+helen_emails = EmailList(user_address=HELEN_EMAIL)
+
 email_registry = EmailRegistry({
     USER_EMAIL: user_emails,
     ATTACKER_EMAIL: attacker_emails,
+    HELEN_EMAIL: helen_emails,
 })
 
 should_reset_agent = False
