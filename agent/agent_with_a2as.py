@@ -15,7 +15,8 @@ B (behavior certificates)
     here we implement it through our own class `EmailBehaviorCertificates`
 
 A (authenticated prompts)
-    — — — todo — — —
+    the principle ensures that external input data is checked for integrity 
+    and authenticity before the model begins processing it.
     
 S (security boundaries)
     isolates trusted system instructions from untrusted user input or tools within the context window;
@@ -45,11 +46,11 @@ def get_agent_with_a2as(user_addr: str, email_registry: EmailRegistry):
     """
     A2AS-protected agent with BASIC security controls:
 
-    B (Behavior Certificates) - EmailBehaviorCertificates класс
-    A (Authenticated Prompts) - подпись сообщений в app.py
-    S (Security Boundaries) - теги <a2as:user>, <a2as:tool>
-    I (In-Context Defenses) - мета-инструкции в <a2as:defense>
-    C (Codified Policies) - правила в <a2as:policy>
+    B (Behavior Certificates) - EmailBehaviorCertificates class
+    A (Authenticated Prompts) - signing messages in app.py
+    S (Security Boundaries) - <a2as:user>, <a2as:tool> tags
+    I (In-Context Defenses) - meta-instructions in <a2as:defense>
+    C (Codified Policies) - rules in <a2as:policy>
     """
     behavior_certificates = EmailBehaviorCertificates()
 
