@@ -47,9 +47,11 @@ Finally, below the dialog box is a window for displaying agent logs, which shows
 
 ### Project setup
 
-This project supports two ways of connecting llm models: using hugging face, or using local model through LM Studio. 
+All you need to launch the application is to create `.env` file in the root of repository and fill it with the necessary data, depending on the method of llm model connection you are using. Please see `.env.example` file as an example.  
 
-Before launching the project, you need to create a `.env` file in the root of the repository and fill it with the necessary data. As an example, you can use the `.env.example` file. Fill in the file according to the model connection method you are using.
+This project supports two ways of connecting llm models: using hugging face, or using local model.
+
+When `.env` file is created, setup dependencies from `requirements.txt` file and run `app.py`. You are good to go!
 
 ### Attack performing
 
