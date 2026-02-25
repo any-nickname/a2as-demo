@@ -1,5 +1,6 @@
 from models.behavior_certificates import BehaviorCertificates
 from models.email_list import EmailList
+from agent.a2as_boundaries import wrap_tool_output
 from typing import Dict
 from smolagents import Tool
 
@@ -27,23 +28,29 @@ class FindEmailsTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates):
+    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates, a2as_enabled: bool = False):
         super().__init__()
         self.email_address = user_address
         self.email_registry = registry
         self.behavior_certificates = behavior_certificates
+        self.a2as_enabled = a2as_enabled
+
+    def _wrap_output(self, output: str) -> str:
+        if self.a2as_enabled:
+            return wrap_tool_output(self.name, output)
+        return output
 
     def forward(self, query: str) -> str:
         # Checking if user is allowed to call "find emails" command.
         ok, reason = self.behavior_certificates.check_right_to_find_emails()
         if not ok:
-            return f"Email search was not initiated because: {reason}"
+            return self._wrap_output(f"Email search was not initiated because: {reason}")
 
         results = self.email_registry[self.email_address].keyword_search(query, top_k=15)
 
         if not results:
-            return f"No emails found in the email list matching your query."
-        
+            return self._wrap_output(f"No emails found in the email list matching your query.")
+
         output = f"Found {len(results)} email(s) in the email list:\n\n"
         for i, email in enumerate(results, 1):
             output += f"Email {i}:\n"
@@ -52,7 +59,7 @@ class FindEmailsTool(Tool):
             output += f"Subject: {email['subject']}\n"
             output += f"Body: {email['body']}\n\n"
 
-        return output
+        return self._wrap_output(output)
     
 
 class SendEmailTool(Tool):
@@ -74,21 +81,32 @@ class SendEmailTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates):
+    def __init__(self, user_address: str, registry: EmailRegistry, behavior_certificates: BehaviorCertificates, a2as_enabled: bool = False):
         super().__init__()
         self.email_address = user_address
         self.email_registry = registry
         self.behavior_certificates = behavior_certificates
+        self.a2as_enabled = a2as_enabled
 
+    def _wrap_output(self, output: str) -> str:
+        if self.a2as_enabled:
+            return wrap_tool_output(self.name, output)
+        return output
 
     def forward(self, to_address: str, subject: str, body: str) -> str:
         # Checking if user is allowed to call "send email" command.
-        ok, reason = self.behavior_certificates.check_right_to_send_email(to_address, subject, body)
+        ok, reason = self.behavior_certificates.check_right_to_send_email(
+            to_address,
+            subject,
+            body,
+        )
         if not ok:
-            return (f"Sending the email from \"{self.email_address}\" to \"{to_address}\" with subject \"{subject}\" and body \"{body}\" "
-                    f"has been blocked because it prohibits company's policy. Do not try to resend the email."
-                    f"The reason of prohibition: {reason}. You must answer to the user with explanation of why his request has been blocked.")
+            return self._wrap_output(
+                f"Sending the email from \"{self.email_address}\" to \"{to_address}\" with subject \"{subject}\" and body \"{body}\" "
+                f"has been blocked because it prohibits company's policy. Do not try to resend the email."
+                f"The reason of prohibition: {reason}. You must answer to the user with explanation of why his request has been blocked."
+            )
 
         self.email_registry[self.email_address].add_sent_email(to_address, subject, body)
         self.email_registry[to_address].add_received_email(self.email_address, subject, body)
-        return f"Email sent successfully!\nFrom: {self.email_address}\nTo: {to_address}\nSubject: {subject}\nBody:{body}"
+        return self._wrap_output(f"Email sent successfully!\nFrom: {self.email_address}\nTo: {to_address}\nSubject: {subject}\nBody:{body}")
